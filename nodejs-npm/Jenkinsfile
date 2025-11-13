@@ -1,0 +1,45 @@
+@Library('blackduck-logs-publisher') _
+
+pipeline {
+    agent { label 'mac-sh' }
+
+    stages {
+        stage("Build") {
+            steps {
+                script {
+                    echo "JOB_NAME: ${env.JOB_NAME}"
+
+                    dir('nodejs-npm') {
+                        sh 'node --version'
+                        sh 'npm --version'
+                        sh 'npm install'
+                    }
+                }
+            }
+        }
+
+        stage("polaris-arbitrary-sast") {
+            steps {
+                script {
+                    dir('nodejs-npm') {
+                        security_scan polaris_assessment_types: 'SAST,SCA', polaris_waitForScan: true, coverity_build_command: 'npm install',
+                        coverity_clean_command: 'npm cache clean --force', product: 'polaris'
+                          
+
+                        
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            pushJenkinsLogsToGitHub([
+                githubOrg: 'polaris-jenkins-samples',
+                repoName: 'arbitrary-params-sast',
+                retentionCount: 5
+            ])
+        }
+    }
+}
